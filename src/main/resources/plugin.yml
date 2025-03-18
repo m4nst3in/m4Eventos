@@ -1,0 +1,4 @@
+name: m4Eventos
+version: '1.0-SNAPSHOT'
+main: m4.m4nst3in.m4plugins.M4Eventos
+api-version: '1.21'
