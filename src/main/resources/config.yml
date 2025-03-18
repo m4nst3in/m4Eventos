@@ -1,0 +1,58 @@
+# Configuração M4Eventos
+
+# Configurações gerais
+mensagens:
+  prefix: '&8[&b&lM4&f&lEventos&8] '
+  evento-iniciado: '&aO evento %evento% foi iniciado! Use /evento %evento% para participar!'
+  evento-fechado: '&cO evento %evento% foi fechado!'
+  evento-vencedor: '&aParabéns %jogador% por vencer o evento %evento%!'
+  evento-recompensa: '&aVocê recebeu %coins% coins e um item especial!'
+  evento-sem-permissao: '&cVocê não tem permissão para usar este comando!'
+  evento-nao-encontrado: '&cEvento não encontrado!'
+  evento-ja-iniciado: '&cEste evento já está em andamento!'
+  evento-nao-iniciado: '&cEste evento não está em andamento!'
+  evento-entrou: '&aVocê entrou no evento %evento%!'
+  evento-ja-participando: '&cVocê já está participando deste evento!'
+  evento-spawn-definido: '&aLocalização de spawn %tipo% definida com sucesso!'
+
+# Configurações dos eventos
+eventos:
+  witherstorm:
+    nome: 'Wither Storm'
+    habilitado: true
+    agendamento: 'WEDNESDAY-16:00'
+    recompensas:
+      coins: 75000
+      itens:
+        - material: NETHERITE_SWORD
+          quantidade: 1
+          encantamentos:
+            DAMAGE_ALL: 5
+            FIRE_ASPECT: 3
+          nome: '&5Espada do Destruidor'
+          lore:
+            - '&7Forjada com o poder'
+            - '&7do Wither Storm'
+        - material: NETHERITE_HELMET
+          quantidade: 1
+          encantamentos:
+            PROTECTION_ENVIRONMENTAL: 4
+            OXYGEN: 3
+          nome: '&5Capacete Tempestuoso'
+          lore:
+            - '&7Protege contra as'
+            - '&7tempestades do fim'
+        - material: TOTEM_OF_UNDYING
+          quantidade: 2
+          nome: '&6Totem da Imortalidade'
+          lore:
+            - '&7Negar a morte é um poder'
+            - '&7dos vencedores'
+
+# Configurações de database
+database:
+  tipo: SQLITE
+  arquivo: 'database.db'
+  hikari:
+    maximumPoolSize: 10
+    connectionTimeout: 30000
