@@ -89,7 +89,7 @@ public class WitherStormEvent extends AbstractEvent {
 
         // Fase de preparação - 5 minutos para jogadores entrarem
         prepareTask = new BukkitRunnable() {
-            private int timeLeft = 300; // 5 minutos em segundos
+            private int timeLeft = 60; // 5 minutos em segundos
 
             @Override
             public void run() {

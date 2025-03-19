@@ -2,18 +2,25 @@
 
 # Configurações gerais
 mensagens:
-  prefix: '&8[&b&lM4&f&lEventos&8] '
-  evento-iniciado: '&aO evento %evento% foi iniciado! Use /evento %evento% para participar!'
-  evento-fechado: '&cO evento %evento% foi fechado!'
-  evento-vencedor: '&aParabéns %jogador% por vencer o evento %evento%!'
-  evento-recompensa: '&aVocê recebeu %coins% coins e um item especial!'
-  evento-sem-permissao: '&cVocê não tem permissão para usar este comando!'
-  evento-nao-encontrado: '&cEvento não encontrado!'
-  evento-ja-iniciado: '&cEste evento já está em andamento!'
-  evento-nao-iniciado: '&cEste evento não está em andamento!'
-  evento-entrou: '&aVocê entrou no evento %evento%!'
-  evento-ja-participando: '&cVocê já está participando deste evento!'
-  evento-spawn-definido: '&aLocalização de spawn %tipo% definida com sucesso!'
+  prefix: '&8[&b&l᠌ᐈ &f&lM4&b&lEventos &8] '
+  evento-iniciado: '&a✦ O evento %evento% foi iniciado! &7⚡ Use &e/evento %evento% &7para participar!'
+  evento-fechado: '&c✖ O evento %evento% foi encerrado!'
+  evento-vencedor: '&6✪ &e&lPARABÉNS! &6✪ &f%jogador% &avenceu o evento &b%evento%&a!'
+  evento-recompensa: '&a✓ Você recebeu &e%coins% coins &ae um &6item especial&a!'
+  evento-sem-permissao: '&c✖ Você não tem permissão para usar este comando!'
+  evento-nao-encontrado: '&c✖ Evento não encontrado!'
+  evento-ja-iniciado: '&c✖ Este evento já está em andamento!'
+  evento-nao-iniciado: '&c✖ Este evento não está em andamento!'
+  evento-entrou: '&a✓ Você entrou no evento &b%evento%&a! Boa sorte!'
+  evento-ja-participando: '&c✖ Você já está participando de um evento!'
+  evento-spawn-definido: '&a✓ Localização de spawn &e%tipo% &adefinida com sucesso!'
+  frog-aviso-bloco: '&4⚠ &cAtenção! &fBlocos de &e%bloco% &fvirarão neve em &c%tempo% &fsegundos!'
+  frog-bloco-diamante: '&b✧ &b&lUm bloco de diamante apareceu! &b&lSeja o primeiro a alcançá-lo!'
+  frog-eliminado: '&c☠ Você caiu na água e foi eliminado!'
+  frog-pos-definida: '&a✓ Posição &e%posicao% &adefinida com sucesso!'
+  frog-area-invalida: '&c✖ A área definida é maior que o limite de 10x10 blocos!'
+  frog-preparando: '&e⚠ O evento começará em &c%tempo% &esegundos! Encontre um bloco seguro!'
+  frog-fase-final: '&b✦ &b&lFASE FINAL! &7Apenas um bloco de cada tipo restante! Caminhos de neve estão aparecendo!'
 
 # Configurações dos eventos
 eventos:
@@ -29,25 +36,70 @@ eventos:
           encantamentos:
             DAMAGE_ALL: 5
             FIRE_ASPECT: 3
-          nome: '&5Espada do Destruidor'
+          nome: '&5✦ Espada do Destruidor ✦'
           lore:
             - '&7Forjada com o poder'
             - '&7do Wither Storm'
+            - ''
+            - '&8"&7A tempestade que destrói mundos&8"'
         - material: NETHERITE_HELMET
           quantidade: 1
           encantamentos:
             PROTECTION_ENVIRONMENTAL: 4
             OXYGEN: 3
-          nome: '&5Capacete Tempestuoso'
+          nome: '&5✦ Capacete Tempestuoso ✦'
           lore:
             - '&7Protege contra as'
             - '&7tempestades do fim'
+            - ''
+            - '&8"&7Só os fortes sobrevivem&8"'
         - material: TOTEM_OF_UNDYING
           quantidade: 2
-          nome: '&6Totem da Imortalidade'
+          nome: '&6✦ Totem da Imortalidade ✦'
           lore:
             - '&7Negar a morte é um poder'
             - '&7dos vencedores'
+            - ''
+            - '&8"&7Uma segunda chance&8"'
+  frog:
+    nome: 'Frog Race'
+    habilitado: true
+    agendamento: 'FRIDAY-19:00'
+    recompensas:
+      coins: 50000
+      itens:
+        - material: DIAMOND_BOOTS
+          quantidade: 1
+          encantamentos:
+            PROTECTION_FALL: 4
+            DEPTH_STRIDER: 3
+          nome: '&b✦ Botas do Sapo Saltador ✦'
+          lore:
+            - '&7Salte como o mais ágil dos sapos'
+            - '&7e nunca tema a queda!'
+            - ''
+            - '&8"&7Salto, logo existo&8"'
+        - material: RABBIT_FOOT
+          quantidade: 1
+          encantamentos:
+            LUCK: 3
+          nome: '&a✦ Pé de Sapo da Sorte ✦'
+          lore:
+            - '&7A sorte favorece os saltadores'
+            - '&7que não temem a água'
+            - ''
+            - '&8"&7Saltar para vencer&8"'
+        - material: POTION
+          quantidade: 1
+          potion_type: JUMP
+          potion_extended: true
+          potion_upgraded: true
+          nome: '&a✦ Poção do Grande Salto ✦'
+          lore:
+            - '&7Salte como nunca antes'
+            - '&7e supere todos os obstáculos'
+            - ''
+            - '&8"&7O céu é o limite&8"'
 
 # Configurações de database
 database:

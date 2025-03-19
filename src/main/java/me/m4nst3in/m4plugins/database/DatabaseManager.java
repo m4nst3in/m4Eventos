@@ -87,8 +87,17 @@ public class DatabaseManager {
                     "FOREIGN KEY (player_uuid) REFERENCES players(uuid) ON DELETE CASCADE, " +
                     "FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE)");
 
-            // Inserir eventos disponíveis
-            insertDefaultEvents();
+            // Insert default events using the same connection
+            try {
+                PreparedStatement ps = conn.prepareStatement("INSERT OR IGNORE INTO events (id, name) VALUES (?, ?)");
+                // Inserir evento Wither Storm
+                ps.setString(1, "witherstorm");
+                ps.setString(2, "Wither Storm");
+                ps.executeUpdate();
+                ps.close();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Erro ao inserir eventos padrão", e);
+            }
 
             plugin.getLogger().info("Tabelas do banco de dados criadas com sucesso");
         } catch (SQLException e) {

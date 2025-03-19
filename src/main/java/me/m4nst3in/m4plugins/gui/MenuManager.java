@@ -224,10 +224,18 @@ public class MenuManager {
         }
     }
 
+    public void handleMenuClose(Player player) {
+        if (isPlayerInMenu(player)) {
+            removePlayerFromMenu(player);
+        }
+    }
+
     private Material getMaterialForEvent(String eventId) {
         switch (eventId.toLowerCase()) {
             case "witherstorm":
                 return Material.WITHER_SKELETON_SKULL;
+            case "frog":
+                return Material.SNOW_BLOCK;
             default:
                 return Material.PAPER;
         }

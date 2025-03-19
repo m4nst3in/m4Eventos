@@ -3,13 +3,17 @@ version: '${version}'
 main: me.m4nst3in.m4plugins.M4Eventos
 api-version: '1.21'
 author: m4nst3in
-description: ${description}
+description: 'Plugin de eventos customizados para servidores de Minecraft'
 depend: [Vault]
 commands:
   witherstorm:
     description: Comando principal para gerenciar o evento Wither Storm
     usage: /witherstorm <iniciar|parar|setspawn>
     permission: m4eventos.witherstorm.admin
+  frog:
+    description: Comando principal para gerenciar o evento Frog Race
+    usage: /frog <iniciar|parar|setarea|setspawn>
+    permission: m4eventos.frog.admin
   evento:
     description: Comando para participar de eventos
     usage: /evento <nome>

@@ -16,6 +16,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
@@ -112,6 +113,14 @@ public class EventListener implements Listener {
         if (plugin.getMenuManager().isPlayerInMenu(player)) {
             event.setCancelled(true);
             handleMenuClick(player, event.getCurrentItem(), plugin.getMenuManager().getPlayerMenu(player));
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (event.getPlayer() instanceof Player) {
+            Player player = (Player) event.getPlayer();
+            plugin.getMenuManager().handleMenuClose(player);
         }
     }
 
