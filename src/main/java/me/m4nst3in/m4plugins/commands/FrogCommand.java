@@ -4,6 +4,7 @@ import me.m4nst3in.m4plugins.M4Eventos;
 import me.m4nst3in.m4plugins.events.AbstractEvent;
 import me.m4nst3in.m4plugins.events.FrogEvent;
 import me.m4nst3in.m4plugins.utils.MessageUtils;
+import me.m4nst3in.m4plugins.utils.SelectionManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -37,7 +38,7 @@ public class FrogCommand implements CommandExecutor, TabCompleter {
 
         AbstractEvent abstractEvent = plugin.getEventManager().getEvent("frog");
         if (!(abstractEvent instanceof FrogEvent)) {
-            MessageUtils.send(sender, "&cEvento Frog Race não encontrado. Contate um administrador.");
+            MessageUtils.send(sender, "&c✖ Evento Frog Race não encontrado. Contate um administrador.");
             return true;
         }
 
@@ -88,19 +89,40 @@ public class FrogCommand implements CommandExecutor, TabCompleter {
 
                 Player player = (Player) sender;
 
-                if (args[1].equalsIgnoreCase("pos1")) {
-                    event.setPos1(player.getLocation());
-                    MessageUtils.send(sender, plugin.getConfig().getString("mensagens.frog-pos-definida")
-                            .replace("%posicao%", "1 da área do evento"));
-                } else if (args[1].equalsIgnoreCase("pos2")) {
-                    event.setPos2(player.getLocation());
-                    MessageUtils.send(sender, plugin.getConfig().getString("mensagens.frog-pos-definida")
-                            .replace("%posicao%", "2 da área do evento"));
+                // Se o jogador já estiver no modo de seleção
+                if (plugin.getSelectionManager().hasSelection(player)) {
+                    MessageUtils.send(player, "&c✖ Você já está em modo de seleção. Clique com botão direito em um bloco ou digite /frog cancelar para cancelar.");
+                    return true;
+                }
 
-                    // Verificar se a área é válida
-                    if (!event.canStart()) {
-                        MessageUtils.send(sender, plugin.getConfig().getString("mensagens.frog-area-invalida"));
-                    }
+                if (args[1].equalsIgnoreCase("pos1")) {
+                    plugin.getSelectionManager().startSelection(
+                            player,
+                            SelectionManager.SelectionType.FROG_AREA_POS1,
+                            loc -> {
+                                event.setPos1(loc);
+                                MessageUtils.send(player, plugin.getConfig().getString("mensagens.frog-pos-definida")
+                                        .replace("%posicao%", "1 da área do evento"));
+
+                                // Verificar se a área é válida
+                                if (event.getPos2() != null && !event.isValidArea()) {
+                                    MessageUtils.send(player, plugin.getConfig().getString("mensagens.frog-area-invalida"));
+                                }
+                            });
+                } else if (args[1].equalsIgnoreCase("pos2")) {
+                    plugin.getSelectionManager().startSelection(
+                            player,
+                            SelectionManager.SelectionType.FROG_AREA_POS2,
+                            loc -> {
+                                event.setPos2(loc);
+                                MessageUtils.send(player, plugin.getConfig().getString("mensagens.frog-pos-definida")
+                                        .replace("%posicao%", "2 da área do evento"));
+
+                                // Verificar se a área é válida
+                                if (event.getPos1() != null && !event.isValidArea()) {
+                                    MessageUtils.send(player, plugin.getConfig().getString("mensagens.frog-area-invalida"));
+                                }
+                            });
                 } else {
                     MessageUtils.send(sender, "&c✖ Posição inválida. Use 'pos1' ou 'pos2'.");
                 }
@@ -119,17 +141,42 @@ public class FrogCommand implements CommandExecutor, TabCompleter {
 
                 Player p = (Player) sender;
 
+                // Se o jogador já estiver no modo de seleção
+                if (plugin.getSelectionManager().hasSelection(p)) {
+                    MessageUtils.send(p, "&c✖ Você já está em modo de seleção. Clique com botão direito em um bloco ou digite /frog cancelar para cancelar.");
+                    return true;
+                }
+
                 if (args[1].equalsIgnoreCase("pos1")) {
-                    event.setSpawnPos1(p.getLocation());
-                    MessageUtils.send(sender, plugin.getConfig().getString("mensagens.frog-pos-definida")
-                            .replace("%posicao%", "1 da área de spawn"));
+                    plugin.getSelectionManager().startSelection(
+                            p,
+                            SelectionManager.SelectionType.FROG_SPAWN_POS1,
+                            loc -> {
+                                event.setSpawnPos1(loc);
+                                MessageUtils.send(p, plugin.getConfig().getString("mensagens.frog-pos-definida")
+                                        .replace("%posicao%", "1 da área de spawn"));
+                            });
                 } else if (args[1].equalsIgnoreCase("pos2")) {
-                    event.setSpawnPos2(p.getLocation());
-                    MessageUtils.send(sender, plugin.getConfig().getString("mensagens.frog-pos-definida")
-                            .replace("%posicao%", "2 da área de spawn"));
+                    plugin.getSelectionManager().startSelection(
+                            p,
+                            SelectionManager.SelectionType.FROG_SPAWN_POS2,
+                            loc -> {
+                                event.setSpawnPos2(loc);
+                                MessageUtils.send(p, plugin.getConfig().getString("mensagens.frog-pos-definida")
+                                        .replace("%posicao%", "2 da área de spawn"));
+                            });
                 } else {
                     MessageUtils.send(sender, "&c✖ Posição inválida. Use 'pos1' ou 'pos2'.");
                 }
+                break;
+
+            case "cancelar":
+                if (!(sender instanceof Player)) {
+                    MessageUtils.send(sender, "&c✖ Apenas jogadores podem usar este comando.");
+                    return true;
+                }
+
+                plugin.getSelectionManager().cancelSelection((Player) sender);
                 break;
 
             default:
@@ -148,6 +195,7 @@ public class FrogCommand implements CommandExecutor, TabCompleter {
         MessageUtils.send(sender, "&e/frog setarea pos2 &7- Define a segunda posição da área do evento");
         MessageUtils.send(sender, "&e/frog setspawn pos1 &7- Define a primeira posição da área de spawn");
         MessageUtils.send(sender, "&e/frog setspawn pos2 &7- Define a segunda posição da área de spawn");
+        MessageUtils.send(sender, "&e/frog cancelar &7- Cancela uma seleção em andamento");
         MessageUtils.send(sender, "&7Nota: &eA área do evento deve ser de no máximo 10x10 blocos.");
     }
 
@@ -158,7 +206,7 @@ public class FrogCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return Arrays.asList("iniciar", "parar", "setarea", "setspawn").stream()
+            return Arrays.asList("iniciar", "parar", "setarea", "setspawn", "cancelar").stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         } else if (args.length == 2 && (args[0].equalsIgnoreCase("setarea") || args[0].equalsIgnoreCase("setspawn"))) {

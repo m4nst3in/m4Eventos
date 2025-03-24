@@ -10,9 +10,12 @@ import me.m4nst3in.m4plugins.events.EventManager;
 import me.m4nst3in.m4plugins.events.FrogEvent;
 import me.m4nst3in.m4plugins.events.WitherStormEvent;
 import me.m4nst3in.m4plugins.gui.MenuManager;
+import me.m4nst3in.m4plugins.listeners.CommandBlockListener;
 import me.m4nst3in.m4plugins.listeners.EventListener;
+import me.m4nst3in.m4plugins.listeners.SelectionListener;
 import me.m4nst3in.m4plugins.scheduler.EventScheduler;
 import me.m4nst3in.m4plugins.utils.MessageUtils;
+import me.m4nst3in.m4plugins.utils.SelectionManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -30,6 +33,8 @@ import java.util.logging.Level;
 @Getter
 public class M4Eventos extends JavaPlugin {
 
+    @Getter
+    private SelectionManager selectionManager;
     private static M4Eventos instance;
     private YamlConfiguration config;
     private DatabaseManager databaseManager;
@@ -50,6 +55,8 @@ public class M4Eventos extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
+
+        this.selectionManager = new SelectionManager();
 
         // Inicializar mensagens com valores pré-definidos
         MessageUtils.setPrefix("&8[&b&l᠌ᐈ &f&lM4&b&lEventos &8] ");
@@ -81,6 +88,8 @@ public class M4Eventos extends JavaPlugin {
 
             // Registro dos listeners
             getServer().getPluginManager().registerEvents(new EventListener(this), this);
+            getServer().getPluginManager().registerEvents(new SelectionListener(this), this);
+            getServer().getPluginManager().registerEvents(new CommandBlockListener(this), this);
 
             // Iniciar agendamento
             this.eventScheduler.startScheduler();

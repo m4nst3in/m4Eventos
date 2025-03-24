@@ -6,6 +6,7 @@ import me.m4nst3in.m4plugins.utils.ConfigUtils;
 import me.m4nst3in.m4plugins.utils.MessageUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
@@ -21,10 +22,14 @@ import java.util.stream.Collectors;
 
 public class FrogEvent extends AbstractEvent {
 
-    @Getter private Location pos1;
-    @Getter private Location pos2;
-    @Getter private Location spawnPos1;
-    @Getter private Location spawnPos2;
+    @Getter
+    private Location pos1;
+    @Getter
+    private Location pos2;
+    @Getter
+    private Location spawnPos1;
+    @Getter
+    private Location spawnPos2;
     private BukkitTask prepareTask;
     private BukkitTask gameTask;
     private BossBar bossBar;
@@ -34,6 +39,10 @@ public class FrogEvent extends AbstractEvent {
     private final List<Location> snowLocations;
     private boolean finalPhase;
     private Location diamondLocation;
+    private final Map<Location, Material> barrierBlocks = new HashMap<>(); // Armazenar os blocos originais onde a barreira será colocada
+    private boolean barrierActive = false;
+    private final Map<Location, BlockData> originalBlocks = new HashMap<>();
+    private boolean gameStarted = false;
 
     public FrogEvent(M4Eventos plugin) {
         super(plugin, "frog", "Frog Race");
@@ -43,18 +52,42 @@ public class FrogEvent extends AbstractEvent {
         this.snowLocations = new ArrayList<>();
         this.finalPhase = false;
 
-        // Inicializa lista de blocos disponíveis (exclui neve, diamante e blocos não sólidos)
-        for (Material material : Material.values()) {
-            if (material.isBlock() && material.isSolid() &&
-                    material != Material.SNOW_BLOCK &&
-                    material != Material.DIAMOND_BLOCK &&
-                    !material.name().contains("GLASS") &&
-                    !material.name().contains("SLAB") &&
-                    !material.name().contains("STAIR") &&
-                    !material.name().contains("FENCE") &&
-                    !material.name().contains("WALL") &&
-                    !material.name().contains("DOOR") &&
-                    !material.name().contains("CARPET")) {
+        Material[] solidBlocksMaterials = {
+                Material.STONE, Material.GRANITE, Material.POLISHED_GRANITE,
+                Material.DIORITE, Material.POLISHED_DIORITE, Material.ANDESITE,
+                Material.POLISHED_ANDESITE, Material.DEEPSLATE, Material.COBBLESTONE,
+                Material.OAK_WOOD, Material.SPRUCE_WOOD, Material.BIRCH_WOOD,
+                Material.JUNGLE_WOOD, Material.ACACIA_WOOD, Material.DARK_OAK_WOOD,
+                Material.MANGROVE_WOOD, Material.CHERRY_WOOD, Material.CRIMSON_HYPHAE,
+                Material.WARPED_HYPHAE, Material.GOLD_BLOCK, Material.IRON_BLOCK,
+                Material.EMERALD_BLOCK, Material.LAPIS_BLOCK, Material.COPPER_BLOCK,
+                Material.COAL_BLOCK, Material.NETHERITE_BLOCK, Material.OBSIDIAN,
+                Material.CRYING_OBSIDIAN, Material.QUARTZ_BLOCK, Material.AMETHYST_BLOCK,
+                Material.CLAY, Material.HAY_BLOCK, Material.TERRACOTTA, Material.WHITE_TERRACOTTA,
+                Material.ORANGE_TERRACOTTA, Material.MAGENTA_TERRACOTTA, Material.LIGHT_BLUE_TERRACOTTA,
+                Material.YELLOW_TERRACOTTA, Material.LIME_TERRACOTTA, Material.PINK_TERRACOTTA,
+                Material.GRAY_TERRACOTTA, Material.LIGHT_GRAY_TERRACOTTA, Material.CYAN_TERRACOTTA,
+                Material.PURPLE_TERRACOTTA, Material.BLUE_TERRACOTTA, Material.BROWN_TERRACOTTA,
+                Material.GREEN_TERRACOTTA, Material.RED_TERRACOTTA, Material.BLACK_TERRACOTTA,
+                Material.WHITE_CONCRETE, Material.ORANGE_CONCRETE, Material.MAGENTA_CONCRETE,
+                Material.LIGHT_BLUE_CONCRETE, Material.YELLOW_CONCRETE, Material.LIME_CONCRETE,
+                Material.PINK_CONCRETE, Material.GRAY_CONCRETE, Material.LIGHT_GRAY_CONCRETE,
+                Material.CYAN_CONCRETE, Material.PURPLE_CONCRETE, Material.BLUE_CONCRETE,
+                Material.BROWN_CONCRETE, Material.GREEN_CONCRETE, Material.RED_CONCRETE,
+                Material.BLACK_CONCRETE, Material.WHITE_WOOL, Material.ORANGE_WOOL,
+                Material.MAGENTA_WOOL, Material.LIGHT_BLUE_WOOL, Material.YELLOW_WOOL,
+                Material.LIME_WOOL, Material.PINK_WOOL, Material.GRAY_WOOL,
+                Material.LIGHT_GRAY_WOOL, Material.CYAN_WOOL, Material.PURPLE_WOOL,
+                Material.BLUE_WOOL, Material.BROWN_WOOL, Material.GREEN_WOOL,
+                Material.RED_WOOL, Material.BLACK_WOOL, Material.SMOOTH_STONE,
+                Material.BRICKS, Material.BOOKSHELF, Material.MOSSY_COBBLESTONE,
+                Material.PRISMARINE, Material.PRISMARINE_BRICKS, Material.DARK_PRISMARINE,
+                Material.PURPUR_BLOCK, Material.NETHER_BRICKS, Material.RED_NETHER_BRICKS
+        };
+
+        // Adicionar apenas os blocos garantidamente sólidos
+        for (Material material : solidBlocksMaterials) {
+            if (material != Material.SNOW_BLOCK && material != Material.DIAMOND_BLOCK) {
                 availableBlockTypes.add(material);
             }
         }
@@ -108,13 +141,14 @@ public class FrogEvent extends AbstractEvent {
         if (running) return false;
         if (pos1 == null || pos2 == null || spawnPos1 == null || spawnPos2 == null) return false;
 
-        // Verificar se a área é válida (10x10 máximo)
+        // Verificar se a área é válida (25x25 máximo)
         if (!isValidArea()) {
             return false;
         }
 
         running = true;
         open = true;
+        gameStarted = false;
 
         // Resetar variáveis de controle
         blockTypeLocations.clear();
@@ -122,6 +156,14 @@ public class FrogEvent extends AbstractEvent {
         snowLocations.clear();
         finalPhase = false;
         diamondLocation = null;
+        barrierBlocks.clear();
+        originalBlocks.clear(); // Limpar blocos originais anteriores
+
+        // Salvar o estado original dos blocos antes de alterá-los
+        saveOriginalBlocks();
+
+        // Criar barreira entre o spawn e a área do evento
+        createBarrier();
 
         // Criando BossBar
         bossBar = Bukkit.createBossBar(
@@ -144,6 +186,11 @@ public class FrogEvent extends AbstractEvent {
                 if (timeLeft <= 0) {
                     closeForPlayers();
                     setupGameArea();
+
+                    // Rebloquear a área de spawn após o início do evento
+                    reblockSpawnArea();
+
+                    gameStarted = true; // Marcar que o jogo está em andamento para o bloqueio de comandos
                     startGameLogic();
                     cancel();
                     return;
@@ -155,9 +202,26 @@ public class FrogEvent extends AbstractEvent {
                             formatTime(timeLeft));
                 }
 
-                // 30 segundos antes do início, libera a zona de spawn
+                // 30 segundos antes do início, libera a zona de spawn (remove a barreira)
                 if (timeLeft == 30 && !spawnZoneUnlocked) {
-                    broadcast(ChatColor.GREEN + "⚠ A zona de spawn foi liberada! Você já pode entrar na área do evento!");
+                    removeBarrier();
+                    broadcast(ChatColor.GREEN + "⚠ &a&lA BARREIRA FOI REMOVIDA! &eEntrem na área do evento agora!");
+                    broadcast(ChatColor.YELLOW + "☢ Jogadores que não estiverem na área quando o evento começar serão eliminados!");
+
+                    // Efeito sonoro para todos os jogadores
+                    for (UUID uuid : players) {
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null) {
+                            player.playSound(player.getLocation(), Sound.BLOCK_GLASS_BREAK, 1.0f, 1.0f);
+                            player.playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.5f, 1.0f);
+                            player.sendTitle(
+                                    ChatColor.GREEN + "BARREIRA REMOVIDA!",
+                                    ChatColor.YELLOW + "Entre na área do evento agora!",
+                                    5, 60, 10
+                            );
+                        }
+                    }
+
                     spawnZoneUnlocked = true;
                 }
 
@@ -175,6 +239,181 @@ public class FrogEvent extends AbstractEvent {
         return true;
     }
 
+    private void saveOriginalBlocks() {
+        if (pos1 == null || pos2 == null) return;
+
+        World world = pos1.getWorld();
+        int minX = Math.min(pos1.getBlockX(), pos2.getBlockX());
+        int maxX = Math.max(pos1.getBlockX(), pos2.getBlockX());
+        int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
+        int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
+        int y = pos1.getBlockY();
+
+        // Salvar blocos na altura do evento
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                // Salvar o bloco na altura do jogo
+                Location loc = new Location(world, x, y, z);
+                Block block = world.getBlockAt(loc);
+                originalBlocks.put(loc.clone(), block.getBlockData().clone());
+
+                // Salvar também blocos abaixo para onde estaria a água
+                Location belowLoc = new Location(world, x, y - 2, z);
+                Block belowBlock = world.getBlockAt(belowLoc);
+                originalBlocks.put(belowLoc.clone(), belowBlock.getBlockData().clone());
+
+                // E o nível intermediário
+                Location midLoc = new Location(world, x, y - 1, z);
+                Block midBlock = world.getBlockAt(midLoc);
+                originalBlocks.put(midLoc.clone(), midBlock.getBlockData().clone());
+            }
+        }
+
+        plugin.getLogger().info("Salvos " + originalBlocks.size() + " blocos originais para restauração futura");
+    }
+
+    private void restoreOriginalBlocks() {
+        if (originalBlocks.isEmpty()) return;
+
+        plugin.getLogger().info("Restaurando " + originalBlocks.size() + " blocos ao estado original");
+
+        for (Map.Entry<Location, BlockData> entry : originalBlocks.entrySet()) {
+            Location loc = entry.getKey();
+            BlockData data = entry.getValue();
+
+            // Se o mundo estiver carregado e o chunk também
+            if (loc.getWorld() != null && loc.getWorld().isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4)) {
+                Block block = loc.getBlock();
+                block.setBlockData(data);
+            }
+        }
+
+        originalBlocks.clear();
+    }
+
+    private void createBarrier() {
+        if (pos1 == null || pos2 == null || spawnPos1 == null || spawnPos2 == null) return;
+
+        // Determine os limites da área do evento
+        int eventMinX = Math.min(pos1.getBlockX(), pos2.getBlockX());
+        int eventMaxX = Math.max(pos1.getBlockX(), pos2.getBlockX());
+        int eventY = pos1.getBlockY();
+        int eventMinZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
+        int eventMaxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
+
+        // Determine os limites da área de spawn
+        int spawnMinX = Math.min(spawnPos1.getBlockX(), spawnPos2.getBlockX());
+        int spawnMaxX = Math.max(spawnPos1.getBlockX(), spawnPos2.getBlockX());
+        int spawnMinY = Math.min(spawnPos1.getBlockY(), spawnPos2.getBlockY());
+        int spawnMaxY = Math.max(spawnPos1.getBlockY(), spawnPos2.getBlockY());
+        int spawnMinZ = Math.min(spawnPos1.getBlockZ(), spawnPos2.getBlockZ());
+        int spawnMaxZ = Math.max(spawnPos1.getBlockZ(), spawnPos2.getBlockZ());
+
+        World world = pos1.getWorld();
+
+        // Limpar qualquer barreira anterior
+        barrierBlocks.clear();
+
+        // Determinar onde a barreira deve ser colocada com base na proximidade das áreas
+        // Abordagem: verificar cada lado da área do evento e ver se está próximo à área de spawn
+
+        // Verificar lado -X do evento (oeste)
+        if (Math.abs(eventMinX - spawnMaxX) <= 3) {
+            // A área de spawn está perto do lado oeste do evento
+            int barrierX = (eventMinX + spawnMaxX) / 2;
+            for (int z = Math.min(eventMinZ, spawnMinZ); z <= Math.max(eventMaxZ, spawnMaxZ); z++) {
+                for (int y = spawnMinY; y <= spawnMaxY + 2; y++) { // +2 para altura da barreira
+                    Location loc = new Location(world, barrierX, y, z);
+                    placeBarrierBlock(loc);
+                }
+            }
+        }
+
+        // Verificar lado +X do evento (leste)
+        if (Math.abs(eventMaxX - spawnMinX) <= 3) {
+            // A área de spawn está perto do lado leste do evento
+            int barrierX = (eventMaxX + spawnMinX) / 2;
+            for (int z = Math.min(eventMinZ, spawnMinZ); z <= Math.max(eventMaxZ, spawnMaxZ); z++) {
+                for (int y = spawnMinY; y <= spawnMaxY + 2; y++) {
+                    Location loc = new Location(world, barrierX, y, z);
+                    placeBarrierBlock(loc);
+                }
+            }
+        }
+
+        // Verificar lado -Z do evento (norte)
+        if (Math.abs(eventMinZ - spawnMaxZ) <= 3) {
+            // A área de spawn está perto do lado norte do evento
+            int barrierZ = (eventMinZ + spawnMaxZ) / 2;
+            for (int x = Math.min(eventMinX, spawnMinX); x <= Math.max(eventMaxX, spawnMaxX); x++) {
+                for (int y = spawnMinY; y <= spawnMaxY + 2; y++) {
+                    Location loc = new Location(world, x, y, barrierZ);
+                    placeBarrierBlock(loc);
+                }
+            }
+        }
+
+        // Verificar lado +Z do evento (sul)
+        if (Math.abs(eventMaxZ - spawnMinZ) <= 3) {
+            // A área de spawn está perto do lado sul do evento
+            int barrierZ = (eventMaxZ + spawnMinZ) / 2;
+            for (int x = Math.min(eventMinX, spawnMinX); x <= Math.max(eventMaxX, spawnMaxX); x++) {
+                for (int y = spawnMinY; y <= spawnMaxY + 2; y++) {
+                    Location loc = new Location(world, x, y, barrierZ);
+                    placeBarrierBlock(loc);
+                }
+            }
+        }
+
+        // Marcamos como ativa
+        barrierActive = true;
+
+        // Broadcast sobre a barreira
+        broadcast(ChatColor.YELLOW + "⚠ Uma barreira foi criada entre as áreas de spawn e evento!");
+        broadcast(ChatColor.YELLOW + "⚠ Ela será removida 30 segundos antes do início do evento!");
+    }
+
+    // Método auxiliar para colocar um bloco de barreira e salvar o bloco original
+    private void placeBarrierBlock(Location location) {
+        Block block = location.getBlock();
+
+        // Salvar o material atual
+        barrierBlocks.put(location.clone(), block.getType());
+
+        // Definir o bloco como barreira
+        block.setType(Material.BARRIER);
+
+        // Adicionar efeito visual para destacar o bloco
+        location.getWorld().spawnParticle(Particle.ASH,
+                location.clone().add(0.5, 0.5, 0.5),
+                1, 0, 0, 0, 0,
+                new org.bukkit.Particle.DustOptions(Color.RED, 1));
+    }
+
+    // Método para remover a barreira
+    private void removeBarrier() {
+        if (!barrierActive) return;
+
+        // Restaurar blocos originais
+        for (Map.Entry<Location, Material> entry : barrierBlocks.entrySet()) {
+            Location loc = entry.getKey();
+            Material originalType = entry.getValue();
+
+            // Restaurar o bloco original
+            loc.getBlock().setType(originalType);
+
+            // Efeito visual
+            loc.getWorld().spawnParticle(
+                    Particle.CLOUD,
+                    loc.clone().add(0.5, 0.5, 0.5),
+                    5, 0.2, 0.2, 0.2, 0.05);
+        }
+
+        barrierBlocks.clear();
+        barrierActive = false;
+    }
+
+
     private String formatTime(int seconds) {
         int minutes = seconds / 60;
         int remainingSeconds = seconds % 60;
@@ -182,7 +421,7 @@ public class FrogEvent extends AbstractEvent {
                 remainingSeconds + " segundo" + (remainingSeconds != 1 ? "s" : "");
     }
 
-    private boolean isValidArea() {
+    public boolean isValidArea() {
         if (pos1 == null || pos2 == null) return false;
 
         int minX = Math.min(pos1.getBlockX(), pos2.getBlockX());
@@ -193,7 +432,7 @@ public class FrogEvent extends AbstractEvent {
         int width = maxX - minX + 1;
         int length = maxZ - minZ + 1;
 
-        return width <= 10 && length <= 10;
+        return width <= 25 && length <= 25;
     }
 
     private void setupGameArea() {
@@ -207,24 +446,27 @@ public class FrogEvent extends AbstractEvent {
         int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
 
         int totalBlocks = (maxX - minX + 1) * (maxZ - minZ + 1);
-        int blockTypesNeeded = Math.min(25, totalBlocks / 4); // Máximo de 25 tipos diferentes, mínimo 4 de cada tipo
+        int blockTypesNeeded = Math.max(1, totalBlocks / 25);
+
+        plugin.getLogger().info("Total de blocos na arena: " + totalBlocks);
+        plugin.getLogger().info("Tipos de blocos que serão usados: " + blockTypesNeeded);
 
         List<Material> selectedTypes = new ArrayList<>(availableBlockTypes);
         Collections.shuffle(selectedTypes);
-        selectedTypes = selectedTypes.subList(0, blockTypesNeeded);
+        selectedTypes = selectedTypes.subList(0, Math.min(blockTypesNeeded, selectedTypes.size()));
 
-        // Guardar cópia dos blocos originais (para restauração futura)
+        plugin.getLogger().info("Tipos de blocos selecionados: " + selectedTypes.size());
+
+        // Configurar void (ar) embaixo da área em vez de água
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
-                Block block = world.getBlockAt(x, y - 1, z);
-                // Poderia salvar os blocos originais aqui se necessário
-
-                // Criar água abaixo da área
-                world.getBlockAt(x, y - 2, z).setType(Material.WATER);
+                // Definir como AR em vez de água
+                world.getBlockAt(x, y - 1, z).setType(Material.AIR);
+                world.getBlockAt(x, y - 2, z).setType(Material.AIR);
             }
         }
 
-        // Definir blocos aleatórios, garantindo pelo menos 4 de cada tipo
+        // Definir blocos aleatórios, garantindo pelo menos 25 de cada tipo
         List<Location> allLocations = new ArrayList<>();
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
@@ -233,10 +475,13 @@ public class FrogEvent extends AbstractEvent {
         }
         Collections.shuffle(allLocations);
 
-        // Primeiro, garantir pelo menos 4 de cada tipo
+        // Primeiro, garantir pelo menos 25 de cada tipo (ou o máximo possível)
         for (Material type : selectedTypes) {
             blockTypeLocations.put(type, new ArrayList<>());
-            for (int i = 0; i < 4 && !allLocations.isEmpty(); i++) {
+            // Determinar quantos blocos deste tipo (até 25)
+            int blocksOfThisType = Math.min(25, allLocations.size() / selectedTypes.size());
+
+            for (int i = 0; i < blocksOfThisType && !allLocations.isEmpty(); i++) {
                 Location loc = allLocations.remove(0);
                 Block block = world.getBlockAt(loc);
                 block.setType(type);
@@ -245,42 +490,122 @@ public class FrogEvent extends AbstractEvent {
             usedBlockTypes.add(type);
         }
 
-        // Preencher o restante aleatoriamente
-        for (Location loc : allLocations) {
-            Material randomType = selectedTypes.get(ThreadLocalRandom.current().nextInt(selectedTypes.size()));
-            Block block = world.getBlockAt(loc);
-            block.setType(randomType);
-            blockTypeLocations.get(randomType).add(loc);
+        // Preencher o restante aleatoriamente, mantendo o equilíbrio
+        if (!allLocations.isEmpty()) {
+            int typeIndex = 0;
+            for (Location loc : allLocations) {
+                Material type = selectedTypes.get(typeIndex);
+                Block block = world.getBlockAt(loc);
+                block.setType(type);
+                blockTypeLocations.get(type).add(loc);
+
+                // Avançar para o próximo tipo
+                typeIndex = (typeIndex + 1) % selectedTypes.size();
+            }
         }
 
-        // Teleportar jogadores fora da área para o spawn do servidor
-        for (UUID uuid : new HashSet<>(players)) {
-            Player player = Bukkit.getPlayer(uuid);
-            if (player != null && player.isOnline()) {
-                boolean inArea = isPlayerInEventArea(player);
-                if (!inArea) {
-                    MessageUtils.send(player, "&c✖ Você não estava na área do evento quando ele começou!");
+        // Teleportar todos os jogadores para a área do jogo
+        teleportPlayersToGameArea();
+    }
+
+    private void reblockSpawnArea() {
+        if (pos1 == null || pos2 == null || spawnPos1 == null || spawnPos2 == null) return;
+
+        // Criar barreira novamente
+        createBarrier();
+
+        broadcast(ChatColor.RED + "⚠ A barreira entre as áreas foi restaurada! O evento está em andamento.");
+
+        // Eliminar jogadores que ficaram para trás no spawn
+        if (open) {
+            Set<UUID> playersToRemove = new HashSet<>();
+
+            for (UUID uuid : players) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && !isPlayerInEventArea(player)) {
+                    MessageUtils.send(player, "&c✖ Você não entrou na área do evento a tempo e foi eliminado!");
                     player.teleport(player.getWorld().getSpawnLocation());
-                    plugin.getEventManager().removePlayerFromEvent(player, this);
+                    playersToRemove.add(uuid);
+
+                    // Efeitos para jogador eliminado
+                    player.playSound(player.getLocation(), Sound.ENTITY_WITHER_HURT, 0.5f, 1.0f);
+                    player.sendTitle(
+                            ChatColor.RED + "ELIMINADO!",
+                            ChatColor.YELLOW + "Você não entrou na área a tempo",
+                            10, 60, 10
+                    );
                 }
             }
+
+            // Remover jogadores eliminados
+            players.removeAll(playersToRemove);
         }
     }
 
-    private boolean isPlayerInEventArea(Player player) {
-        if (pos1 == null || pos2 == null) return false;
+    private void teleportPlayersToGameArea() {
+        if (pos1 == null || pos2 == null || players.isEmpty()) return;
 
-        Location loc = player.getLocation();
+        World world = pos1.getWorld();
         int minX = Math.min(pos1.getBlockX(), pos2.getBlockX());
         int maxX = Math.max(pos1.getBlockX(), pos2.getBlockX());
         int y = pos1.getBlockY();
         int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
         int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
 
-        return loc.getWorld().equals(pos1.getWorld()) &&
-                loc.getBlockX() >= minX && loc.getBlockX() <= maxX &&
-                loc.getBlockY() == y &&
-                loc.getBlockZ() >= minZ && loc.getBlockZ() <= maxZ;
+        broadcast(ChatColor.GOLD + "✦ Teleportando todos os jogadores para a área do evento...");
+
+        // Criar uma lista de posições possíveis
+        List<Location> teleportLocations = new ArrayList<>();
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                Location loc = new Location(world, x + 0.5, y + 1, z + 0.5);
+                teleportLocations.add(loc);
+            }
+        }
+
+        // Embaralhar as posições
+        Collections.shuffle(teleportLocations);
+
+        // Teleportar cada jogador para uma posição diferente na área
+        int locationIndex = 0;
+        for (UUID uuid : new HashSet<>(players)) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                if (locationIndex < teleportLocations.size()) {
+                    player.teleport(teleportLocations.get(locationIndex));
+                    locationIndex++;
+                } else {
+                    // Se não houver mais posições disponíveis, use a primeira novamente
+                    player.teleport(teleportLocations.get(0));
+                }
+
+                player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+                player.sendTitle(
+                        ChatColor.GREEN + "Frog Race",
+                        ChatColor.YELLOW + "Boa sorte!",
+                        10, 40, 10);
+            }
+        }
+    }
+
+    public boolean isPlayerInEventArea(Player player) {
+        if (pos1 == null || pos2 == null) return false;
+
+        Location loc = player.getLocation();
+
+        // Verificar se o jogador está no mesmo mundo
+        if (!loc.getWorld().equals(pos1.getWorld())) return false;
+
+        int minX = Math.min(pos1.getBlockX(), pos2.getBlockX());
+        int maxX = Math.max(pos1.getBlockX(), pos2.getBlockX());
+        int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
+        int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
+        int y = pos1.getBlockY();
+
+        // Verificar se está na área do evento (com alguma tolerância vertical)
+        return loc.getBlockX() >= minX && loc.getBlockX() <= maxX &&
+                loc.getBlockZ() >= minZ && loc.getBlockZ() <= maxZ &&
+                Math.abs(loc.getBlockY() - y) <= 2;
     }
 
     private void startGameLogic() {
@@ -567,16 +892,27 @@ public class FrogEvent extends AbstractEvent {
     public boolean stop() {
         if (!running) return false;
 
-        running = false;
-        open = false;
-
-        // Cancelar tarefas
-        if (prepareTask != null && !prepareTask.isCancelled()) {
-            prepareTask.cancel();
+        // Se a barreira ainda estiver ativa, remova-a
+        if (barrierActive) {
+            removeBarrier();
         }
 
-        if (gameTask != null && !gameTask.isCancelled()) {
+        running = false;
+        open = false;
+        gameStarted = false;
+
+        // Restaurar os blocos originais
+        restoreOriginalBlocks();
+
+        // Cancelar tarefas
+        if (prepareTask != null) {
+            prepareTask.cancel();
+            prepareTask = null;
+        }
+
+        if (gameTask != null) {
             gameTask.cancel();
+            gameTask = null;
         }
 
         // Remover BossBar
@@ -585,27 +921,34 @@ public class FrogEvent extends AbstractEvent {
             bossBar = null;
         }
 
-        // Restaurar área do jogo (opcional)
-        // restoreGameArea();
+        // Broadcast fim do evento
+        Bukkit.broadcastMessage(MessageUtils.color(
+                plugin.getConfig().getString("mensagens.prefix") +
+                        plugin.getConfig().getString("mensagens.evento-fechado").replace("%evento%", name)));
 
-        // Teleportar jogadores para o spawn
-        for (UUID uuid : new HashSet<>(players)) {
+        // Teleportar jogadores de volta ao spawn
+        for (UUID uuid : players) {
             Player player = Bukkit.getPlayer(uuid);
-            if (player != null && player.isOnline()) {
+            if (player != null) {
                 player.teleport(player.getWorld().getSpawnLocation());
-                plugin.getEventManager().removePlayerFromEvent(player, this);
             }
         }
 
-        // Limpar variáveis
-        blockTypeLocations.clear();
-        usedBlockTypes.clear();
-        snowLocations.clear();
-        diamondLocation = null;
-        finalPhase = false;
-
-        onEventEnd();
+        players.clear();
         return true;
+    }
+
+    public boolean canUseCommand(String command) {
+        // Se o evento não estiver rodando ou o jogo não iniciou, permitir comandos
+        if (!running || !gameStarted) return true;
+
+        // Se for o comando /g, permitir
+        return command.equalsIgnoreCase("g") || command.startsWith("g ");
+    }
+
+    // Getter para verificar se o jogo está em andamento
+    public boolean isGameStarted() {
+        return gameStarted;
     }
 
     @Override
@@ -643,15 +986,19 @@ public class FrogEvent extends AbstractEvent {
 
     @Override
     protected void onPlayerJoin(Player player) {
-        // Teleportar para a área de espera
+        // Teleportar para a área de espera (longe da barreira)
         if (spawnPos1 != null && spawnPos2 != null) {
-            int minX = Math.min(spawnPos1.getBlockX(), spawnPos2.getBlockX());
-            int maxX = Math.max(spawnPos1.getBlockX(), spawnPos2.getBlockX());
+            int minX = Math.min(spawnPos1.getBlockX(), spawnPos2.getBlockX()) + 2; // +2 para evitar teleporte na borda
+            int maxX = Math.max(spawnPos1.getBlockX(), spawnPos2.getBlockX()) - 2; // -2 para evitar teleporte na borda
             int y = spawnPos1.getBlockY();
-            int minZ = Math.min(spawnPos1.getBlockZ(), spawnPos2.getBlockZ());
-            int maxZ = Math.max(spawnPos1.getBlockZ(), spawnPos2.getBlockZ());
+            int minZ = Math.min(spawnPos1.getBlockZ(), spawnPos2.getBlockZ()) + 2;
+            int maxZ = Math.max(spawnPos1.getBlockZ(), spawnPos2.getBlockZ()) - 2;
 
-            // Calcular posição central da área de spawn
+            // Ajustar se a área for muito pequena
+            if (maxX - minX < 2) minX = maxX = (minX + maxX) / 2;
+            if (maxZ - minZ < 2) minZ = maxZ = (minZ + maxZ) / 2;
+
+            // Calcular posição central da área de spawn, ligeiramente afastada da barreira
             int centerX = minX + (maxX - minX) / 2;
             int centerZ = minZ + (maxZ - minZ) / 2;
 
@@ -661,6 +1008,12 @@ public class FrogEvent extends AbstractEvent {
 
         if (bossBar != null) {
             bossBar.addPlayer(player);
+        }
+
+        // Enviar mensagem sobre a barreira se estiver ativa
+        if (barrierActive) {
+            MessageUtils.send(player, "&e⚠ Uma barreira separa a área de spawn da área do evento!");
+            MessageUtils.send(player, "&eEla será removida 30 segundos antes do início!");
         }
 
         broadcast(ChatColor.GREEN + "✓ " + player.getName() + " entrou no evento!");

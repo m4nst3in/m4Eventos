@@ -18,8 +18,13 @@ mensagens:
   frog-bloco-diamante: '&b✧ &b&lUm bloco de diamante apareceu! &b&lSeja o primeiro a alcançá-lo!'
   frog-eliminado: '&c☠ Você caiu na água e foi eliminado!'
   frog-pos-definida: '&a✓ Posição &e%posicao% &adefinida com sucesso!'
-  frog-area-invalida: '&c✖ A área definida é maior que o limite de 10x10 blocos!'
-  frog-preparando: '&e⚠ O evento começará em &c%tempo% &esegundos! Encontre um bloco seguro!'
+  frog-area-invalida: '&c✖ A área definida é maior que o limite de 25x25 blocos!'
+  frog-preparando: '&e⚠ O evento começará em &c%tempo% &esegundos! Encontre um bloco seguro na área do evento!'
+  frog-barreira-criada: '&e⚠ Uma barreira foi criada separando a área de spawn da área do evento!'
+  frog-barreira-removida: '&a✓ A barreira foi removida! &eVocê já pode entrar na área do evento!'
+  frog-comando-bloqueado: '&c✖ Comandos estão bloqueados durante o evento! Apenas /g é permitido.'
+  frog-barreira-recriada: '&c⚠ A barreira entre as áreas foi restaurada! O evento está em andamento.'
+  frog-eliminado-tempo: '&c✖ Você não entrou na área do evento a tempo e foi eliminado!'
   frog-fase-final: '&b✦ &b&lFASE FINAL! &7Apenas um bloco de cada tipo restante! Caminhos de neve estão aparecendo!'
 
 # Configurações dos eventos
